@@ -1,0 +1,35 @@
+services:
+  api:
+    build: .
+    image: ledger-daily-fx:1.0.0
+    container_name: ledger-daily-fx
+    ports:
+      - "8000:8000"
+    environment:
+      # SQLite file for the single pricing day, inside the named volume.
+      DB_PATH: /data/ledger.db
+      PRICING_DATE: ${PRICING_DATE:-2026-11-25}
+    volumes:
+      - ledger-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      interval: 5s
+      timeout: 4s
+      retries: 10
+      start_period: 5s
+
+  # Optional one-shot test run against the same image:
+  #   docker compose run --rm tests
+  tests:
+    image: ledger-daily-fx:1.0.0
+    build: .
+    profiles: ["test"]
+    command: ["python", "-m", "pytest"]
+    environment:
+      DB_PATH: /tmp/test-ledger.db
+    working_dir: /app
+
+volumes:
+  ledger-data:
